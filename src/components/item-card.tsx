@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Item } from './items-grid';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 interface ItemCardProps {
@@ -25,6 +25,11 @@ export default function ItemCard({ item, onClaim }: ItemCardProps) {
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
+  
+  const formatDate = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  }
 
   const handleClaimClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); // prevent navigation when claiming
@@ -56,7 +61,11 @@ export default function ItemCard({ item, onClaim }: ItemCardProps) {
           </div>
         </CardHeader>
         <CardContent className="p-4 flex-grow">
-          <CardTitle className="text-lg font-semibold mb-2">{item.title}</CardTitle>
+          <CardTitle className="text-lg font-semibold mb-1">{item.title}</CardTitle>
+          <div className="flex items-center text-sm text-muted-foreground mb-3">
+            <Calendar className="mr-2 h-4 w-4" />
+            <span>{formatDate(item.date)}</span>
+          </div>
           <div className="flex justify-between items-baseline text-muted-foreground">
             <span className="text-sm">Total:</span>
             <span className="font-mono text-base text-foreground font-medium">{formatCurrency(item.totalPayable)}</span>

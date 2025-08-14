@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, PlusCircle, Trash2 } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Trash2, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -44,6 +44,7 @@ import { Label } from "@/components/ui/label"
 const receiptDetails = {
   id: '1',
   title: 'Weekly Groceries',
+  date: '2023-10-26',
   images: [
     'https://placehold.co/600x800.png',
     'https://placehold.co/600x800.png',
@@ -127,11 +128,22 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
+
+  const formatDate = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  }
   
   return (
     <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-6xl mx-auto">
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight">{receiptDetails.title}</h1>
+        <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">{receiptDetails.title}</h1>
+            <div className="flex items-center text-sm text-muted-foreground">
+                <Calendar className="mr-2 h-4 w-4" />
+                <span>{formatDate(receiptDetails.date)}</span>
+            </div>
+        </div>
         <Card>
           <CardContent className="p-2">
             <Carousel className="w-full">
