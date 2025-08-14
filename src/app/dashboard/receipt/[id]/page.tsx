@@ -199,42 +199,44 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
                                     <p className="font-medium">{item.name}</p>
                                     <p className="text-sm text-muted-foreground">{formatCurrency(item.price)}</p>
                                 </div>
-                                {item.claimedBy ? (
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                        <span>Claimed by</span>
-                                        <Avatar className="h-6 w-6">
-                                            <AvatarImage src={users[item.claimedBy as keyof typeof users]?.avatar} />
-                                            <AvatarFallback>{users[item.claimedBy as keyof typeof users]?.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                    </div>
-                                ) : (
-                                    <Button size="sm" onClick={() => handleClaim(item.id)} style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                                        Claim
-                                    </Button>
-                                )}
-                                {isUploader && (
-                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                             <Button variant="ghost" size="icon" className="ml-2 text-destructive hover:text-destructive">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete the item
-                                                "{item.name}" from the list.
-                                            </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteItem(item.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
+                                <div className="flex items-center gap-x-4">
+                                    {item.claimedBy ? (
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            <span>Claimed by</span>
+                                            <Avatar className="h-6 w-6">
+                                                <AvatarImage src={users[item.claimedBy as keyof typeof users]?.avatar} />
+                                                <AvatarFallback>{users[item.claimedBy as keyof typeof users]?.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                    ) : (
+                                        <Button size="sm" onClick={() => handleClaim(item.id)} style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
+                                            Claim
+                                        </Button>
+                                    )}
+                                    {isUploader && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the item
+                                                    "{item.name}" from the list.
+                                                </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteItem(item.id)}>Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
+                                </div>
                             </div>
                            {index < items.length - 1 && <Separator />}
                         </div>
