@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, PlusCircle, Trash2, Calendar, Users } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Trash2, Calendar, Users, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -39,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 // Mock data - in a real app, you'd fetch this based on the `id` param
@@ -68,7 +69,18 @@ const users = {
   'user1': { name: 'John Doe', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
   'user2': { name: 'Jane Smith', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704e' },
   'user3': { name: 'Sam Wilson', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704f' },
+  'user4': { name: 'Alice Johnson', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704a' },
+  'user5': { name: 'Bob Brown', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704b' },
 };
+
+const allUsers = [
+    { id: 'user1', name: 'John Doe' },
+    { id: 'user2', name: 'Jane Smith' },
+    { id: 'user3', name: 'Sam Wilson' },
+    { id: 'user4', name: 'Alice Johnson' },
+    { id: 'user5', name: 'Bob Brown' },
+];
+
 
 // Assume the current user is the uploader for demonstration
 const currentUserId = 'user1';
@@ -76,7 +88,9 @@ const currentUserId = 'user1';
 
 export default function ReceiptPage({ params }: { params: { id: string } }) {
   const [items, setItems] = useState(receiptDetails.items);
+  const [participants, setParticipants] = useState(receiptDetails.participants);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [isAddParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const { toast } = useToast();
@@ -127,6 +141,24 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleParticipantChange = (userId: string) => {
+    setParticipants(prev =>
+        prev.includes(userId)
+            ? prev.filter(id => id !== userId)
+            : [...prev, userId]
+    );
+  };
+
+  const saveParticipants = () => {
+    // In a real app, this would be a database call
+    console.log("Saving participants:", participants);
+    toast({
+        title: "Participants Updated",
+        description: "The participant list has been saved.",
+    });
+    setAddParticipantDialogOpen(false);
+  };
+
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
@@ -147,10 +179,47 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
             </div>
         </div>
         <div className="space-y-2">
-            <h3 className="flex items-center text-sm font-medium text-muted-foreground"><Users className="mr-2 h-4 w-4" /> Participants</h3>
+            <div className="flex justify-between items-center">
+                <h3 className="flex items-center text-sm font-medium text-muted-foreground"><Users className="mr-2 h-4 w-4" /> Participants</h3>
+                {isUploader && (
+                    <Dialog open={isAddParticipantDialogOpen} onOpenChange={setAddParticipantDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm"><UserPlus className="mr-2 h-4 w-4"/> Manage</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Manage Participants</DialogTitle>
+                                <DialogDescription>Add or remove friends who are part of this receipt.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 py-4 max-h-60 overflow-y-auto pr-2">
+                                {allUsers.map(user => (
+                                    <div key={user.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`participant-${user.id}`}
+                                            checked={participants.includes(user.id)}
+                                            onCheckedChange={() => handleParticipantChange(user.id)}
+                                            disabled={user.id === receiptDetails.uploaderId} // Can't remove self
+                                        />
+                                        <Label htmlFor={`participant-${user.id}`} className="font-normal flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                                <AvatarImage src={users[user.id as keyof typeof users]?.avatar} />
+                                                <AvatarFallback>{users[user.id as keyof typeof users]?.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            {user.name}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={saveParticipants}>Save Changes</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )}
+            </div>
             <div className="flex items-center space-x-2">
               <TooltipProvider>
-                {receiptDetails.participants.map(userId => (
+                {participants.map(userId => (
                     <Tooltip key={userId}>
                         <TooltipTrigger>
                             <Avatar className="h-9 w-9 border-2 border-background ring-1 ring-border">
