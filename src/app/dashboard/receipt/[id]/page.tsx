@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, PlusCircle, Trash2, Calendar } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Trash2, Calendar, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 // Mock data - in a real app, you'd fetch this based on the `id` param
@@ -52,6 +53,7 @@ const receiptDetails = {
   ],
   aiHint: 'receipt groceries',
   uploaderId: 'user1', // The ID of the user who uploaded this
+  participants: ['user1', 'user2', 'user3'],
   items: [
     { id: 'i1', name: 'Organic Bananas', price: 2.50, claimedBy: null },
     { id: 'i2', name: 'Almond Milk', price: 4.15, claimedBy: null },
@@ -142,6 +144,26 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
             <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="mr-2 h-4 w-4" />
                 <span>{formatDate(receiptDetails.date)}</span>
+            </div>
+        </div>
+        <div className="space-y-2">
+            <h3 className="flex items-center text-sm font-medium text-muted-foreground"><Users className="mr-2 h-4 w-4" /> Participants</h3>
+            <div className="flex items-center space-x-2">
+              <TooltipProvider>
+                {receiptDetails.participants.map(userId => (
+                    <Tooltip key={userId}>
+                        <TooltipTrigger>
+                            <Avatar className="h-9 w-9 border-2 border-background ring-1 ring-border">
+                                <AvatarImage src={users[userId as keyof typeof users]?.avatar} />
+                                <AvatarFallback>{users[userId as keyof typeof users]?.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{users[userId as keyof typeof users]?.name}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                ))}
+              </TooltipProvider>
             </div>
         </div>
         <Card>
