@@ -1,9 +1,11 @@
+
 "use client";
 
 import {
   Users,
   LogOut,
-  PiggyBank
+  PiggyBank,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +34,11 @@ export default function Header() {
           <span className="font-bold">Claim It!</span>
         </a>
         <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-          <div className="ml-auto flex-1 sm:flex-initial">
-             <FriendListModal />
+          <div className="ml-auto flex items-center gap-2 sm:flex-initial">
+            <Button variant="default" onClick={() => router.push('/dashboard/upload')}>
+              <Upload className="mr-2 h-4 w-4"/> Upload Receipt
+            </Button>
+            <FriendListModal />
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
