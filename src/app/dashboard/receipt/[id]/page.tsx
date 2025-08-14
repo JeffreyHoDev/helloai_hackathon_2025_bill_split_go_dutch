@@ -214,7 +214,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
                                             Claim
                                         </Button>
                                     )}
-                                    {isUploader && (
+                                    {isUploader && !item.claimedBy && (
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
