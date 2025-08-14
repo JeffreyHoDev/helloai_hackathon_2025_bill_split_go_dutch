@@ -35,8 +35,7 @@ const allUsers = [
 ];
 
 export default function UploadPage() {
-    const [image, setImage] = useState<string | null>(null);
-    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [images, setImages] = useState<string[]>([]);
     const [title, setTitle] = useState('');
     const [items, setItems] = useState<AnalyzeReceiptOutput['items']>([]);
     const [participants, setParticipants] = useState<string[]>(['user1']); // Default to current user
@@ -50,26 +49,32 @@ export default function UploadPage() {
     const { toast } = useToast();
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImage(reader.result as string);
-                setImageFile(file);
+        const files = event.target.files;
+        if (files) {
+            const imagePromises = Array.from(files).map(file => {
+                return new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            Promise.all(imagePromises).then(imageDataUrls => {
+                setImages(imageDataUrls);
                 setIsProcessed(false);
                 setItems([]);
                 setTitle('');
-            };
-            reader.readAsDataURL(file);
+            });
         }
     };
 
     const processReceipt = async () => {
-        if (!image) {
+        if (images.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'No Image Selected',
-                description: 'Please upload a receipt image first.',
+                description: 'Please upload at least one receipt image first.',
             });
             return;
         }
@@ -77,7 +82,7 @@ export default function UploadPage() {
         setIsLoading(true);
         try {
             const result = await analyzeReceipt({
-                receiptDataUri: image,
+                receiptDataUris: images,
             });
             setTitle(result.title);
             setItems(result.items);
@@ -148,7 +153,7 @@ export default function UploadPage() {
             items,
             participants,
             totalPayable,
-            image,
+            images,
         });
         
         toast({
@@ -174,12 +179,16 @@ export default function UploadPage() {
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>1. Upload Image</CardTitle>
+                            <CardTitle>1. Upload Image(s)</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="w-full h-64 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/50">
-                                {image ? (
-                                    <Image src={image} alt="Receipt preview" width={300} height={240} className="object-contain h-full w-full" />
+                            <div className="w-full min-h-64 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/50 p-2">
+                                {images.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2 justify-center">
+                                        {images.map((image, index) => (
+                                            <Image key={index} src={image} alt={`Receipt preview ${index + 1}`} width={150} height={200} className="object-contain h-48 w-auto rounded-md" />
+                                        ))}
+                                    </div>
                                 ) : (
                                     <div className="text-center text-muted-foreground">
                                         <Upload className="mx-auto h-12 w-12" />
@@ -187,11 +196,11 @@ export default function UploadPage() {
                                     </div>
                                 )}
                             </div>
-                            <Input id="receipt-upload" type="file" accept="image/*" onChange={handleImageUpload} className="file:text-primary file:font-semibold" />
+                            <Input id="receipt-upload" type="file" accept="image/*" onChange={handleImageUpload} multiple className="file:text-primary file:font-semibold" />
                         </CardContent>
                     </Card>
 
-                    <Button onClick={processReceipt} disabled={!image || isLoading} className="w-full">
+                    <Button onClick={processReceipt} disabled={images.length === 0 || isLoading} className="w-full">
                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : '2. Analyze with AI'}
                     </Button>
 
