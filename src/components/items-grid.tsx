@@ -28,10 +28,9 @@ interface Users {
 interface ItemsGridProps {
   items: Item[];
   users: Users;
-  onClaim: (id: string) => void;
 }
 
-export default function ItemsGrid({ items, users, onClaim }: ItemsGridProps) {
+export default function ItemsGrid({ items, users }: ItemsGridProps) {
 
   if (items.length === 0) {
     return (
@@ -45,7 +44,7 @@ export default function ItemsGrid({ items, users, onClaim }: ItemsGridProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
       {items.map(item => (
-        <ItemCard key={item.id} item={item} uploader={users[item.uploaderId]} onClaim={onClaim} />
+        <ItemCard key={item.id} item={item} uploader={users[item.uploaderId]} />
       ))}
     </div>
   );

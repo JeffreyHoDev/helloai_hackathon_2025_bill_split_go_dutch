@@ -2,7 +2,6 @@
 "use client";
 
 import Image from 'next/image';
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -24,10 +23,9 @@ interface User {
 interface ItemCardProps {
   item: Item;
   uploader: User;
-  onClaim: (id: string) => void;
 }
 
-export default function ItemCard({ item, uploader, onClaim }: ItemCardProps) {
+export default function ItemCard({ item, uploader }: ItemCardProps) {
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
@@ -36,13 +34,6 @@ export default function ItemCard({ item, uploader, onClaim }: ItemCardProps) {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   }
-
-  const handleClaimClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); // prevent navigation when claiming
-    if (!item.claimed) {
-      onClaim(item.id);
-    }
-  };
 
   return (
     <Link href={`/dashboard/receipt/${item.id}`} className="flex">
@@ -66,9 +57,9 @@ export default function ItemCard({ item, uploader, onClaim }: ItemCardProps) {
               )}
           </div>
         </CardHeader>
-        <CardContent className="p-4 flex-grow">
+        <CardContent className="p-4 flex-grow space-y-2">
           <CardTitle className="text-lg font-semibold mb-1">{item.title}</CardTitle>
-          <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
+          <div className="flex flex-col gap-1 text-sm text-muted-foreground">
             <div className="flex items-center">
                 <Calendar className="mr-2 h-4 w-4" />
                 <span>{formatDate(item.date)}</span>
@@ -90,14 +81,6 @@ export default function ItemCard({ item, uploader, onClaim }: ItemCardProps) {
           </div>
         </CardContent>
         <CardFooter className="p-4 pt-0">
-          <Button 
-              className="w-full"
-              onClick={handleClaimClick}
-              disabled={item.claimed}
-              style={!item.claimed ? { backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' } : {}}
-          >
-              {item.claimed ? 'Claimed' : 'Claim'}
-          </Button>
         </CardFooter>
       </Card>
     </Link>

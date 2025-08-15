@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import ItemsGrid, { type Item } from '@/components/items-grid';
-import { useToast } from "@/hooks/use-toast";
 import { Search, Calendar as CalendarIcon } from 'lucide-react';
 import { subMonths, startOfMonth, endOfMonth, isWithinInterval, format, addDays } from 'date-fns';
 import { DateRange } from "react-day-picker";
@@ -47,20 +46,6 @@ export default function Dashboard() {
     const [dateFilter, setDateFilter] = useState('current_month');
     const [ownershipFilter, setOwnershipFilter] = useState('all');
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
-    const { toast } = useToast();
-  
-    const handleClaimItem = (id: string) => {
-      const itemToClaim = items.find(item => item.id === id);
-      if (itemToClaim) {
-          setItems(items.map(item => 
-              item.id === id ? { ...item, claimed: true, balance: 0 } : item
-          ));
-          toast({
-              title: "Item Claimed!",
-              description: `You have successfully claimed "${itemToClaim.title}".`,
-          });
-      }
-    };
     
     const handleDateFilterChange = (value: string) => {
         setDateFilter(value);
@@ -188,7 +173,7 @@ export default function Dashboard() {
                 )}
             </div>
         </div>
-      <ItemsGrid items={filteredItems} users={users} onClaim={handleClaimItem} />
+      <ItemsGrid items={filteredItems} users={users} />
     </div>
   );
 }
