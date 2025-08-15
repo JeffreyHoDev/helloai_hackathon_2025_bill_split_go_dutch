@@ -1,29 +1,50 @@
+
 const admin = require('firebase-admin');
 
 const register = async (req, res) => {
   const { email, password, displayName } = req.body;
+  const idToken = req.headers.authorization?.split('Bearer ')[1];
 
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required.' });
+  if (!email || !idToken) {
+    return res.status(400).json({ message: 'Email and ID token are required.' });
   }
 
   try {
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName,
-    });
+    // The user is already created on the client-side with Firebase Auth.
+    // We just need to verify the token and create the Firestore record.
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    
+    // Check if user already exists in Firestore to prevent duplicates
+    const userDocRef = admin.firestore().collection('users').doc(uid);
+    const userDoc = await userDocRef.get();
+
+    if (userDoc.exists) {
+        // This can happen if the client-side creation succeeded but this backend call failed and was retried.
+        // We can just return a success message.
+        return res.status(200).json({ uid, message: 'User already exists in Firestore.' });
+    }
 
     // Create a corresponding user document in Firestore
-    await admin.firestore().collection('users').doc(userRecord.uid).set({
+    await userDocRef.set({
       displayName: displayName || email,
       email,
-      avatar: `https://i.pravatar.cc/150?u=${userRecord.uid}` // Using a placeholder avatar
+      avatar: `https://ui-avatars.com/api/?name=${(displayName || email).replace(/\s/g, '+')}`
     });
 
-    res.status(201).json({ uid: userRecord.uid });
+    res.status(201).json({ uid: uid });
   } catch (error) {
-    console.error('Error creating new user:', error);
+    console.error('Error creating new user in backend:', error);
+    // If user creation fails on the backend, it's a good idea to delete the user from Auth
+    // to allow them to try registering again.
+    if (error.code !== 'auth/user-not-found') { // Don't try to delete if we can't find them
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            await admin.auth().deleteUser(decodedToken.uid);
+        } catch (deleteError) {
+            console.error('Failed to clean up user from Auth after Firestore error:', deleteError);
+        }
+    }
     res.status(500).json({ message: 'Error creating new user.', error: error.message });
   }
 };
@@ -44,7 +65,7 @@ const login = async (req, res) => {
     const userDocRef = admin.firestore().collection('users').doc(uid);
     const userDoc = await userDocRef.get();
 
-    // If user does not exist in Firestore, create them
+    // If user does not exist in Firestore, create them (e.g., first time Google Sign-In)
     if (!userDoc.exists) {
       const displayName = userRecord.displayName || userRecord.email || 'New User';
       const email = userRecord.email;
