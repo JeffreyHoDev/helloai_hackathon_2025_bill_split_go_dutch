@@ -13,15 +13,21 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Item } from './items-grid';
-import { CheckCircle2, Calendar } from 'lucide-react';
+import { CheckCircle2, Calendar, User } from 'lucide-react';
 import Link from 'next/link';
+
+interface User {
+    name: string;
+    avatar: string;
+}
 
 interface ItemCardProps {
   item: Item;
+  uploader: User;
   onClaim: (id: string) => void;
 }
 
-export default function ItemCard({ item, onClaim }: ItemCardProps) {
+export default function ItemCard({ item, uploader, onClaim }: ItemCardProps) {
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
@@ -62,9 +68,17 @@ export default function ItemCard({ item, onClaim }: ItemCardProps) {
         </CardHeader>
         <CardContent className="p-4 flex-grow">
           <CardTitle className="text-lg font-semibold mb-1">{item.title}</CardTitle>
-          <div className="flex items-center text-sm text-muted-foreground mb-3">
-            <Calendar className="mr-2 h-4 w-4" />
-            <span>{formatDate(item.date)}</span>
+          <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
+            <div className="flex items-center">
+                <Calendar className="mr-2 h-4 w-4" />
+                <span>{formatDate(item.date)}</span>
+            </div>
+            {uploader && (
+                <div className="flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Uploaded by {uploader.name}</span>
+                </div>
+            )}
           </div>
           <div className="flex justify-between items-baseline text-muted-foreground">
             <span className="text-sm">Total:</span>

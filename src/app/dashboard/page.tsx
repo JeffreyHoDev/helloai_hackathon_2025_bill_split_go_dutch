@@ -30,6 +30,14 @@ const initialItems: Item[] = [
   { id: '8', title: 'Bookstore Haul', image: 'https://placehold.co/600x400.png', aiHint: 'book store', totalPayable: 64.80, balance: 64.80, claimed: false, date: '2025-08-12', uploaderId: 'user2', participantIds: ['user2', 'user1'] },
 ];
 
+const users = {
+  'user1': { name: 'John Doe', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
+  'user2': { name: 'Jane Smith', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704e' },
+  'user3': { name: 'Sam Wilson', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704f' },
+  'user4': { name: 'Alice Johnson', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704a' },
+  'user5': { name: 'Bob Brown', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704b' },
+};
+
 const currentUserId = 'user1';
 
 
@@ -180,7 +188,7 @@ export default function Dashboard() {
                 )}
             </div>
         </div>
-      <ItemsGrid items={filteredItems} onClaim={handleClaimItem} />
+      <ItemsGrid items={filteredItems} users={users} onClaim={handleClaimItem} />
     </div>
   );
 }
