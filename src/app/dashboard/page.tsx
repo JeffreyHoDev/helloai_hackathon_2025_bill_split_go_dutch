@@ -20,14 +20,14 @@ import { subMonths, startOfMonth, endOfMonth, isWithinInterval, format, addDays 
 import { DateRange } from "react-day-picker";
 
 const initialItems: Item[] = [
-  { id: '1', title: 'Weekly Groceries', image: 'https://placehold.co/600x400.png', aiHint: 'receipt groceries', totalPayable: 125.50, balance: 125.50, claimed: false, date: '2023-10-26', uploaderId: 'user1', participantIds: ['user1', 'user2'] },
-  { id: '2', title: 'Dinner at The Italian Place', image: 'https://placehold.co/600x400.png', aiHint: 'restaurant bill', totalPayable: 88.00, balance: 88.00, claimed: false, date: '2023-10-24', uploaderId: 'user2', participantIds: ['user1', 'user2', 'user3'] },
-  { id: '3', title: 'Morning Coffee & Pastries', image: 'https://placehold.co/600x400.png', aiHint: 'coffee shop', totalPayable: 15.75, balance: 0, claimed: true, date: '2023-10-23', uploaderId: 'user1', participantIds: ['user1'] },
-  { id: '4', title: 'Movie Night Tickets', image: 'https://placehold.co/600x400.png', aiHint: 'movie tickets', totalPayable: 32.00, balance: 32.00, claimed: false, date: '2023-10-22', uploaderId: 'user3', participantIds: ['user3', 'user1'] },
-  { id: '5', title: 'New Headphones', image: 'https://placehold.co/600x400.png', aiHint: 'electronics store', totalPayable: 199.99, balance: 199.99, claimed: false, date: '2023-10-20', uploaderId: 'user1', participantIds: ['user1'] },
-  { id: '6', title: 'Summer T-Shirt', image: 'https://placehold.co/600x400.png', aiHint: 'clothing tag', totalPayable: 29.95, balance: 0, claimed: true, date: '2023-10-18', uploaderId: 'user2', participantIds: ['user2'] },
-  { id: '7', title: 'Hardware Store Run', image: 'https://placehold.co/600x400.png', aiHint: 'store receipt', totalPayable: 45.20, balance: 45.20, claimed: false, date: '2023-10-15', uploaderId: 'user1', participantIds: ['user1', 'user3'] },
-  { id: '8', title: 'Bookstore Haul', image: 'https://placehold.co/600x400.png', aiHint: 'book store', totalPayable: 64.80, balance: 64.80, claimed: false, date: '2023-10-12', uploaderId: 'user2', participantIds: ['user2', 'user1'] },
+  { id: '1', title: 'Weekly Groceries', image: 'https://placehold.co/600x400.png', aiHint: 'receipt groceries', totalPayable: 125.50, balance: 125.50, claimed: false, date: '2025-08-26', uploaderId: 'user1', participantIds: ['user1', 'user2'] },
+  { id: '2', title: 'Dinner at The Italian Place', image: 'https://placehold.co/600x400.png', aiHint: 'restaurant bill', totalPayable: 88.00, balance: 88.00, claimed: false, date: '2025-08-24', uploaderId: 'user2', participantIds: ['user1', 'user2', 'user3'] },
+  { id: '3', title: 'Morning Coffee & Pastries', image: 'https://placehold.co/600x400.png', aiHint: 'coffee shop', totalPayable: 15.75, balance: 0, claimed: true, date: '2025-08-23', uploaderId: 'user1', participantIds: ['user1'] },
+  { id: '4', title: 'Movie Night Tickets', image: 'https://placehold.co/600x400.png', aiHint: 'movie tickets', totalPayable: 32.00, balance: 32.00, claimed: false, date: '2025-08-22', uploaderId: 'user3', participantIds: ['user3', 'user1'] },
+  { id: '5', title: 'New Headphones', image: 'https://placehold.co/600x400.png', aiHint: 'electronics store', totalPayable: 199.99, balance: 199.99, claimed: false, date: '2025-08-20', uploaderId: 'user1', participantIds: ['user1'] },
+  { id: '6', title: 'Summer T-Shirt', image: 'https://placehold.co/600x400.png', aiHint: 'clothing tag', totalPayable: 29.95, balance: 0, claimed: true, date: '2025-08-18', uploaderId: 'user2', participantIds: ['user2'] },
+  { id: '7', title: 'Hardware Store Run', image: 'https://placehold.co/600x400.png', aiHint: 'store receipt', totalPayable: 45.20, balance: 45.20, claimed: false, date: '2025-08-15', uploaderId: 'user1', participantIds: ['user1', 'user3'] },
+  { id: '8', title: 'Bookstore Haul', image: 'https://placehold.co/600x400.png', aiHint: 'book store', totalPayable: 64.80, balance: 64.80, claimed: false, date: '2025-08-12', uploaderId: 'user2', participantIds: ['user2', 'user1'] },
 ];
 
 const currentUserId = 'user1';

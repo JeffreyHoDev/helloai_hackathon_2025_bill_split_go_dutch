@@ -46,7 +46,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 const receiptDetails = {
   id: '1',
   title: 'Weekly Groceries',
-  date: '2023-10-26',
+  date: '2025-08-26',
   images: [
     'https://placehold.co/600x800.png',
     'https://placehold.co/600x800.png',
