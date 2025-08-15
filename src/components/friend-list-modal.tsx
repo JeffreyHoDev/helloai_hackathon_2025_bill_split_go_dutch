@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,43 +17,128 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, UserPlus, UserMinus, Search, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/context/AuthContext';
+import type { User as UserType } from '@/types';
 
-const allUsers = [
-    { id: '2', name: 'Jane Smith', email: 'jane@example.com', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704e' },
-    { id: '3', name: 'Sam Wilson', email: 'sam@example.com', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704f' },
-    { id: '4', name: 'Alice Johnson', email: 'alice@example.com', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704a' },
-    { id: '5', name: 'Bob Brown', email: 'bob@example.com', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704b' },
-    { id: '6', name: 'Charlie Davis', email: 'charlie@example.com', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704c' },
-];
-
-const initialFriends = [allUsers[0], allUsers[1]];
-const initialRequests = [allUsers[4]];
+const initialRequests = []; // Mock requests
 
 export default function FriendListModal() {
-  const [friends, setFriends] = useState(initialFriends);
-  const [requests, setRequests] = useState(initialRequests);
-  const [searchTerm, setSearchTerm] = useState('');
-  const { toast } = useToast();
+  const { user } = useAuth();
+  const [friends, setFriends] = useState<UserType[]>([]);
+  const [allAvailableUsers, setAllAvailableUsers] = useState<UserType[]>([]);
 
-  const addFriend = (user: typeof allUsers[0]) => {
-    if (!friends.find(f => f.id === user.id)) {
-      setFriends([...friends, user]);
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (user) {
+        try {
+          const idToken = await user.getIdToken();
+          const res = await fetch(`http://localhost:3001/api/users/${user.uid}/friends`, {
+            headers: {
+              'Authorization': `Bearer ${idToken}`,
+            },
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            setFriends(data);
+          } else {
+            console.error("Failed to fetch friends");
+            toast({
+              title: "Error",
+              description: "Failed to load friends list.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching friends: ", error);
+          toast({
+            title: "Error",
+            description: "Failed to load friends list.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    fetchFriends();
+  }, [user, toast]);
+
+  const addFriend = async (friendToAdd: UserType) => {
+    if (!user) return;
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch(`http://localhost:3001/api/users/${user.uid}/friends`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          friendId: friendToAdd.id,
+          friendData: { name: friendToAdd.name, email: friendToAdd.email, avatar: friendToAdd.avatar },
+        }),
+      });
+
+      if (res.ok) {
+        setFriends(prev => [...prev, friendToAdd]);
+        toast({
+          title: "Friend Added",
+          description: `${friendToAdd.name} is now on your friend list.`,
+        });
+      } else {
+        console.error("Failed to add friend");
+        toast({
+          title: "Error",
+          description: "Failed to add friend.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding friend: ", error);
       toast({
-        title: "Friend Added",
-        description: `${user.name} is now on your friend list.`,
+        title: "Error",
+        description: "Failed to add friend.",
+        variant: "destructive",
       });
     }
   };
 
-  const removeFriend = (userId: string) => {
-    const friend = friends.find(f => f.id === userId);
-    setFriends(friends.filter(f => f.id !== userId));
-    if (friend) {
+  const removeFriend = async (friendId: string) => {
+    if (!user) return;
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch(`http://localhost:3001/api/users/${user.uid}/friends/${friendId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (res.ok) {
+        const friend = friends.find(f => f.id === friendId);
+        setFriends(friends.filter(f => f.id !== friendId));
+        if (friend) {
+            toast({
+                title: "Friend Removed",
+                description: `${friend.name} has been removed from your friends.`,
+                variant: "destructive"
+            });
+        }
+      } else {
+        console.error("Failed to remove friend");
         toast({
-            title: "Friend Removed",
-            description: `${friend.name} has been removed from your friends.`,
-            variant: "destructive"
+          title: "Error",
+          description: "Failed to remove friend.",
+          variant: "destructive",
         });
+      }
+    } catch (error) {
+      console.error("Error removing friend: ", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove friend.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -75,129 +160,14 @@ export default function FriendListModal() {
 
   const searchResults = useMemo(() => {
     if (!searchTerm) return [];
-    return allUsers.filter(user => 
-      (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      !friends.find(f => f.id === user.id) && // Don't show existing friends in search
-      user.id !== '1' // Don't show self
+    return allAvailableUsers.filter(availableUser => 
+      (availableUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      availableUser.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      !friends.find(f => f.id === availableUser.id) && // Don't show existing friends in search
+      availableUser.id !== user?.uid // Don't show self
     );
-  }, [searchTerm, friends]);
+  }, [searchTerm, friends, allAvailableUsers, user]);
 
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="relative">
-          <Users className="mr-2 h-4 w-4" /> Friend List
-          {requests.length > 0 && <Badge className="absolute -right-2 -top-2 h-5 w-5 justify-center p-0">{requests.length}</Badge>}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle>Friend Management</DialogTitle>
-          <DialogDescription>
-            View your current friends, add new ones, or respond to requests.
-          </DialogDescription>
-        </DialogHeader>
-        <Tabs defaultValue="friends" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="friends">My Friends</TabsTrigger>
-            <TabsTrigger value="add">Add Friend</TabsTrigger>
-            <TabsTrigger value="requests" className="relative">
-                Requests
-                {requests.length > 0 && <Badge variant="destructive" className="absolute -right-1 -top-1 h-4 w-4 justify-center p-0">{requests.length}</Badge>}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="friends" className="mt-4">
-             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-              {friends.length > 0 ? friends.map(friend => (
-                <div key={friend.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={friend.avatar} />
-                      <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">{friend.name}</p>
-                      <p className="text-sm text-muted-foreground">{friend.email}</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeFriend(friend.id)}>
-                    <UserMinus className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              )) : (
-                <p className="text-center text-muted-foreground pt-4">Your friend list is empty.</p>
-              )}
-            </div>
-          </TabsContent>
-          <TabsContent value="add" className="mt-4">
-            <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    type="search"
-                    placeholder="Search by name or email..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-            <div className="mt-4 space-y-4 max-h-[240px] overflow-y-auto pr-2">
-                {searchTerm && searchResults.length > 0 ? searchResults.map(user => (
-                    <div key={user.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Avatar>
-                                <AvatarImage src={user.avatar} />
-                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold">{user.name}</p>
-                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                            </div>
-                        </div>
-                        <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => addFriend(user)}
-                            disabled={!!friends.find(f => f.id === user.id)}
-                        >
-                            <UserPlus className="h-4 w-4" />
-                        </Button>
-                    </div>
-                )) : (
-                    searchTerm && <p className="text-center text-muted-foreground pt-4">No users found.</p>
-                )}
-            </div>
-          </TabsContent>
-          <TabsContent value="requests" className="mt-4">
-            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-                {requests.length > 0 ? requests.map(user => (
-                    <div key={user.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                        <Avatar>
-                            <AvatarImage src={user.avatar} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">{user.name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                        </div>
-                        <div className="flex gap-x-2">
-                            <Button variant="outline" size="icon" onClick={() => handleRequest(user, true)}>
-                                <Check className="h-4 w-4 text-green-500" />
-                            </Button>
-                             <Button variant="outline" size="icon" onClick={() => handleRequest(user, false)}>
-                                <X className="h-4 w-4 text-destructive" />
-                            </Button>
-                        </div>
-                    </div>
-                )) : (
-                    <p className="text-center text-muted-foreground pt-4">You have no pending friend requests.</p>
-                )}
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  );
+  
 }
+

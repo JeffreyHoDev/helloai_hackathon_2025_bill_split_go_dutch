@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/context/AuthContext';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
@@ -19,18 +20,15 @@ interface SelectedItem {
     price: number;
 }
 
-function CheckoutForm() {
-    const searchParams = useSearchParams();
+function CheckoutForm({ clientSecret, receiptId, selectedItems }: { clientSecret: string, receiptId: string, selectedItems: SelectedItem[] }) {
     const router = useRouter();
     const { toast } = useToast();
     const stripe = useStripe();
     const elements = useElements();
-    const [isLoading, setIsLoading] = React.useState(false);
-    const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const { user } = useAuth();
 
-    const itemsParam = searchParams.get('items');
-    const receiptId = searchParams.get('receiptId');
-    const selectedItems: SelectedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
     const totalAmount = selectedItems.reduce((sum, item) => sum + item.price, 0);
 
     const formatCurrency = (amount: number) => {
@@ -43,7 +41,6 @@ function CheckoutForm() {
         setErrorMessage(null);
 
         if (!stripe || !elements) {
-            // Stripe.js has not yet loaded.
             setIsLoading(false);
             return;
         }
@@ -55,30 +52,59 @@ function CheckoutForm() {
             return;
         }
 
-        // In a real app, you'd create a PaymentIntent on your server
-        // and use the client secret here.
-        // For this demo, we'll simulate a successful payment.
-        console.log("Creating payment method...");
+        try {
+            const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+                payment_method: {
+                    card: cardElement,
+                },
+            });
 
-        const { error, paymentMethod } = await stripe.createPaymentMethod({
-            type: 'card',
-            card: cardElement,
-        });
+            if (confirmError) {
+                setErrorMessage(confirmError.message || 'An unknown error occurred during payment confirmation.');
+                setIsLoading(false);
+                return;
+            }
 
-        if (error) {
-            console.error(error);
-            setErrorMessage(error.message || 'An unknown error occurred.');
-            setIsLoading(false);
-        } else {
-            console.log('PaymentMethod:', paymentMethod);
-            // Here you would send paymentMethod.id to your server to confirm the payment
-            setTimeout(() => {
-                toast({
-                    title: "Payment Successful!",
-                    description: `You have successfully paid for ${selectedItems.length} items.`,
+            if (paymentIntent.status === 'succeeded') {
+                // Update claimedBy status for each item
+                const idToken = await user?.getIdToken();
+                const updatePromises = selectedItems.map(item => {
+                    return fetch(`http://localhost:3001/api/receipts/${receiptId}/items/${item.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}`,
+                        },
+                        body: JSON.stringify({ claimedBy: user?.uid }),
+                    });
                 });
-                router.push(`/dashboard/receipt/${receiptId}`);
-            }, 1000); // Simulate network latency
+
+                const updateResults = await Promise.all(updatePromises);
+                const allUpdatesSuccessful = updateResults.every(res => res.ok);
+
+                if (allUpdatesSuccessful) {
+                    toast({
+                        title: "Payment Successful!",
+                        description: `You have successfully paid for ${selectedItems.length} items.`,
+                    });
+                    router.push(`/dashboard/receipt/${receiptId}`);
+                } else {
+                    setErrorMessage('Payment succeeded, but failed to update all items.');
+                    toast({
+                        title: "Payment Successful!",
+                        description: "Payment succeeded, but failed to update all items.",
+                        variant: "destructive",
+                    });
+                    router.push(`/dashboard/receipt/${receiptId}`); // Still redirect, but show warning
+                }
+            } else {
+                setErrorMessage(`Payment failed with status: ${paymentIntent.status}`);
+            }
+        } catch (error) {
+            console.error('Error during payment process:', error);
+            setErrorMessage('An unexpected error occurred during payment.');
+        } finally {
+            setIsLoading(false);
         }
     };
     
@@ -135,12 +161,56 @@ function CheckoutPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const itemsParam = searchParams.get('items');
+    const receiptId = searchParams.get('receiptId');
     const selectedItems: SelectedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
     const totalAmount = selectedItems.reduce((sum, item) => sum + item.price, 0);
 
+    const { user } = useAuth();
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const createIntent = async () => {
+            if (!user) return;
+            try {
+                const idToken = await user.getIdToken();
+                const res = await fetch('http://localhost:3001/api/payment/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({ amount: totalAmount, currency: 'usd' }),
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    setClientSecret(data.clientSecret);
+                } else {
+                    console.error("Failed to create payment intent");
+                    toast({
+                        title: "Payment Error",
+                        description: "Failed to initialize payment. Please try again.",
+                        variant: "destructive",
+                    });
+                }
+            } catch (error) {
+                console.error("Error creating payment intent: ", error);
+                toast({
+                    title: "Payment Error",
+                    description: "Failed to initialize payment. Please try again.",
+                    variant: "destructive",
+                });
+            }
+        };
+
+        if (totalAmount > 0 && !clientSecret) {
+            createIntent();
+        }
+    }, [user, totalAmount, clientSecret, toast]);
+
     const options: StripeElementsOptions = {
-        // In a real application, you'd pass a client secret from your server
-        // For demo purposes, we will not create a payment intent here.
+        clientSecret: clientSecret || undefined,
         mode: 'payment',
         amount: Math.round(totalAmount * 100),
         currency: 'usd',
@@ -154,9 +224,16 @@ function CheckoutPageContent() {
             <Button onClick={() => router.back()} variant="ghost" className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4"/> Back to Summary
             </Button>
-            <Elements stripe={stripePromise} options={options}>
-                <CheckoutForm />
-            </Elements>
+            {clientSecret ? (
+                <Elements stripe={stripePromise} options={options}>
+                    <CheckoutForm clientSecret={clientSecret} receiptId={receiptId || ''} selectedItems={selectedItems} />
+                </Elements>
+            ) : (
+                <div className="flex items-center justify-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <p className="ml-2">Loading payment...</p>
+                </div>
+            )}
         </div>
     );
 }

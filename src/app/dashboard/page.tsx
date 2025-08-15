@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -15,37 +16,43 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import ItemsGrid, { type Item } from '@/components/items-grid';
 import { Search, Calendar as CalendarIcon } from 'lucide-react';
-import { subMonths, startOfMonth, endOfMonth, isWithinInterval, format, addDays } from 'date-fns';
+import { subMonths, startOfMonth, endOfMonth, isWithinInterval, format, addDays, Interval } from 'date-fns';
 import { DateRange } from "react-day-picker";
-
-const initialItems: Item[] = [
-  { id: '1', title: 'Weekly Groceries', image: 'https://placehold.co/600x400.png', aiHint: 'receipt groceries', totalPayable: 125.50, balance: 125.50, claimed: false, date: '2025-08-26', uploaderId: 'user1', participantIds: ['user1', 'user2'] },
-  { id: '2', title: 'Dinner at The Italian Place', image: 'https://placehold.co/600x400.png', aiHint: 'restaurant bill', totalPayable: 88.00, balance: 88.00, claimed: false, date: '2025-08-24', uploaderId: 'user2', participantIds: ['user1', 'user2', 'user3'] },
-  { id: '3', title: 'Morning Coffee & Pastries', image: 'https://placehold.co/600x400.png', aiHint: 'coffee shop', totalPayable: 15.75, balance: 0, claimed: true, date: '2025-08-23', uploaderId: 'user1', participantIds: ['user1'] },
-  { id: '4', title: 'Movie Night Tickets', image: 'https://placehold.co/600x400.png', aiHint: 'movie tickets', totalPayable: 32.00, balance: 32.00, claimed: false, date: '2025-08-22', uploaderId: 'user3', participantIds: ['user3', 'user1'] },
-  { id: '5', title: 'New Headphones', image: 'https://placehold.co/600x400.png', aiHint: 'electronics store', totalPayable: 199.99, balance: 199.99, claimed: false, date: '2025-08-20', uploaderId: 'user1', participantIds: ['user1'] },
-  { id: '6', title: 'Summer T-Shirt', image: 'https://placehold.co/600x400.png', aiHint: 'clothing tag', totalPayable: 29.95, balance: 0, claimed: true, date: '2025-08-18', uploaderId: 'user2', participantIds: ['user2'] },
-  { id: '7', title: 'Hardware Store Run', image: 'https://placehold.co/600x400.png', aiHint: 'store receipt', totalPayable: 45.20, balance: 45.20, claimed: false, date: '2025-08-15', uploaderId: 'user1', participantIds: ['user1', 'user3'] },
-  { id: '8', title: 'Bookstore Haul', image: 'https://placehold.co/600x400.png', aiHint: 'book store', totalPayable: 64.80, balance: 64.80, claimed: false, date: '2025-08-12', uploaderId: 'user2', participantIds: ['user2', 'user1'] },
-];
-
-const users = {
-  'user1': { name: 'John Doe', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
-  'user2': { name: 'Jane Smith', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704e' },
-  'user3': { name: 'Sam Wilson', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704f' },
-  'user4': { name: 'Alice Johnson', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704a' },
-  'user5': { name: 'Bob Brown', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704b' },
-};
-
-const currentUserId = 'user1';
-
+import type { Item } from '@/types';
 
 export default function Dashboard() {
-    const [items, setItems] = useState<Item[]>(initialItems);
+    const { user } = useAuth();
+    const [items, setItems] = useState<Item[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('current_month');
     const [ownershipFilter, setOwnershipFilter] = useState('all');
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+    useEffect(() => {
+      const fetchReceipts = async () => {
+        if (user) {
+          try {
+            const idToken = await user.getIdToken();
+            const res = await fetch('http://localhost:3001/api/receipts', {
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+              },
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              setItems(data);
+            } else {
+              console.error("Failed to fetch receipts");
+            }
+          } catch (error) {
+            console.error("Error fetching receipts: ", error);
+          }
+        }
+      };
+
+      fetchReceipts();
+    }, [user]);
     
     const handleDateFilterChange = (value: string) => {
         setDateFilter(value);
@@ -59,9 +66,9 @@ export default function Dashboard() {
 
         // Filter by ownership
         if (ownershipFilter === 'my_uploads') {
-            results = results.filter(item => item.uploaderId === currentUserId);
+            results = results.filter(item => item.uploaderId === user?.uid);
         } else if (ownershipFilter === 'my_bills') {
-            results = results.filter(item => item.participantIds.includes(currentUserId));
+            results = results.filter(item => item.participantIds.includes(user?.uid));
         }
 
         // Filter by date
@@ -98,7 +105,7 @@ export default function Dashboard() {
         
         return results;
 
-    }, [items, searchTerm, dateFilter, dateRange, ownershipFilter]);
+    }, [items, searchTerm, dateFilter, dateRange, ownershipFilter, user]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,7 +180,7 @@ export default function Dashboard() {
                 )}
             </div>
         </div>
-      <ItemsGrid items={filteredItems} users={users} />
+      <ItemsGrid items={filteredItems} />
     </div>
   );
 }

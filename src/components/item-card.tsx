@@ -1,6 +1,4 @@
 
-"use client";
-
 import Image from 'next/image';
 import {
   Card,
@@ -11,21 +9,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Item } from './items-grid';
+import type { Item } from '@/types';
 import { CheckCircle2, Calendar, User } from 'lucide-react';
 import Link from 'next/link';
 
-interface User {
-    name: string;
-    avatar: string;
-}
-
 interface ItemCardProps {
   item: Item;
-  uploader: User;
 }
 
-export default function ItemCard({ item, uploader }: ItemCardProps) {
+export default function ItemCard({ item }: ItemCardProps) {
+  const uploader = item.users ? item.users[item.uploaderId] : null;
+
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
@@ -41,11 +35,11 @@ export default function ItemCard({ item, uploader }: ItemCardProps) {
         <CardHeader className="p-0">
           <div className="relative aspect-video w-full">
               <Image
-                  src={item.image}
+                  src={item.images[0]?.gcsUrl || ''}
                   alt={item.title}
                   fill
                   className="object-cover rounded-t-lg"
-                  data-ai-hint={item.aiHint}
+                  data-ai-hint={item.images[0]?.analysis?.aiHint || ''}
               />
               {item.claimed && (
                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-lg">

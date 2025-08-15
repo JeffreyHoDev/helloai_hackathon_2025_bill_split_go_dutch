@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, PlusCircle, Trash2, Users, Loader2 } from 'lucide-react';
-import { analyzeReceipt, AnalyzeReceiptOutput } from '@/ai/flows/analyze-receipt-flow';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     AlertDialog,
@@ -24,6 +23,8 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
   } from "@/components/ui/alert-dialog"
+import { useAuth } from '@/context/AuthContext';
+import type { ReceiptItem } from '@/types';
 
 // Mock friends list for participants
 const allUsers = [
@@ -35,12 +36,17 @@ const allUsers = [
 ];
 
 export default function UploadPage() {
-    const [images, setImages] = useState<string[]>([]);
+    const { user } = useAuth();
+    const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [title, setTitle] = useState('');
-    const [items, setItems] = useState<AnalyzeReceiptOutput['items']>([]);
+    const [items, setItems] = useState<ReceiptItem[]>([]);
     const [participants, setParticipants] = useState<string[]>(['user1']); // Default to current user
+    const [tax, setTax] = useState(0);
+    const [serviceCharge, setServiceCharge] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [isProcessed, setIsProcessed] = useState(false);
+    const [uploadedImageInfo, setUploadedImageInfo] = useState<any[]>([]); // To store GCS URL and AI analysis
 
     const [newItemName, setNewItemName] = useState('');
     const [newItemPrice, setNewItemPrice] = useState('');
@@ -51,26 +57,20 @@ export default function UploadPage() {
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (files) {
-            const imagePromises = Array.from(files).map(file => {
-                return new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result as string);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-            });
-
-            Promise.all(imagePromises).then(imageDataUrls => {
-                setImages(imageDataUrls);
-                setIsProcessed(false);
-                setItems([]);
-                setTitle('');
-            });
+            setSelectedFiles(files);
+            const filePreviews = Array.from(files).map(file => URL.createObjectURL(file));
+            setImagePreviews(filePreviews);
+            setIsProcessed(false);
+            setItems([]);
+            setTitle('');
+            setUploadedImageInfo([]);
+            setTax(0);
+            setServiceCharge(0);
         }
     };
 
     const processReceipt = async () => {
-        if (images.length === 0) {
+        if (!selectedFiles || selectedFiles.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'No Image Selected',
@@ -81,16 +81,52 @@ export default function UploadPage() {
 
         setIsLoading(true);
         try {
-            const result = await analyzeReceipt({
-                receiptDataUris: images,
+            const formData = new FormData();
+            Array.from(selectedFiles).forEach(file => {
+                formData.append('images', file);
             });
-            setTitle(result.title);
-            setItems(result.items);
-            setIsProcessed(true);
-            toast({
-                title: "Receipt Processed!",
-                description: "AI analysis is complete. Please review the items.",
+
+            const headers: HeadersInit = {};
+            if (user?.uid === 'test_user_uid') {
+                headers['X-Test-Mode'] = 'true';
+            } else if (user) {
+                const idToken = await user.getIdToken();
+                headers['Authorization'] = `Bearer ${idToken}`;
+            }
+
+            const res = await fetch('http://localhost:3001/api/upload/images', {
+                method: 'POST',
+                headers: headers,
+                body: formData,
             });
+
+            if (res.ok) {
+                const data = await res.json();
+                setUploadedImageInfo(data.results);
+                
+                // Aggregate AI analysis results
+                const detectedItems = data.results.flatMap((info: any) => info.analysis?.items || []);
+                const detectedTitle = data.results[0]?.analysis?.title || '';
+                const detectedTax = data.results[0]?.analysis?.tax || 0;
+                const detectedServiceCharge = data.results[0]?.analysis?.serviceCharge || 0;
+
+                setItems(detectedItems);
+                setTitle(detectedTitle);
+                setTax(detectedTax);
+                setServiceCharge(detectedServiceCharge);
+                setIsProcessed(true);
+                toast({
+                    title: "Receipt Processed!",
+                    description: "AI analysis is complete. Please review the items.",
+                });
+            } else {
+                console.error('Error analyzing receipt:', res.statusText);
+                toast({
+                    variant: 'destructive',
+                    title: 'Analysis Failed',
+                    description: `Could not process the receipt image: ${res.statusText}. Please try again.`, 
+                });
+            }
         } catch (error) {
             console.error('Error analyzing receipt:', error);
             toast({
@@ -106,9 +142,11 @@ export default function UploadPage() {
     const handleAddItem = (e: React.FormEvent) => {
         e.preventDefault();
         if (newItemName && newItemPrice) {
-            const newItem = {
+            const newItem: ReceiptItem = {
+                id: `manual-${Date.now()}`,
                 name: newItemName,
                 price: parseFloat(newItemPrice),
+                claimedBy: null,
             };
             setItems([...items, newItem]);
             setNewItemName('');
@@ -134,36 +172,67 @@ export default function UploadPage() {
         );
     };
 
-    const saveReceipt = () => {
-        if (!title || items.length === 0) {
+    const saveReceipt = async () => {
+        if (!title || items.length === 0 || uploadedImageInfo.length === 0) {
             toast({
                 variant: 'destructive',
                 title: 'Cannot Save Receipt',
-                description: 'Please ensure there is a title and at least one item.',
+                description: 'Please ensure you have uploaded and processed images, provided a title, and have at least one item.',
             });
             return;
         }
 
-        const totalPayable = items.reduce((sum, item) => sum + item.price, 0);
+        setIsLoading(true);
+        try {
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+            if (user?.uid === 'test_user_uid') {
+                headers['X-Test-Mode'] = 'true';
+            } else if (user) {
+                const idToken = await user.getIdToken();
+                headers['Authorization'] = `Bearer ${idToken}`;
+            }
 
-        // In a real app, this would be a database call.
-        // Here we simulate it by logging to console and redirecting.
-        console.log({
-            title,
-            items,
-            participants,
-            totalPayable,
-            images,
-        });
-        
-        toast({
-            title: "Receipt Saved!",
-            description: `"${title}" has been added to your dashboard.`,
-        });
+            const res = await fetch('http://localhost:3001/api/receipts', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    title,
+                    items,
+                    participantIds: participants,
+                    images: uploadedImageInfo.map(info => ({ gcsUrl: info.gcsUrl, analysis: info.analysis })),
+                    totalAmount: items.reduce((sum, item) => sum + item.price, 0),
+                    date: new Date().toISOString().split('T')[0], // Use current date for simplicity
+                    tax,
+                    serviceCharge,
+                }),
+            });
 
-        // For this demo, we can't easily pass data back to the dashboard,
-        // so we just navigate back. A real app would use a state management library.
-        router.push('/dashboard');
+            if (res.ok) {
+                toast({
+                    title: "Receipt Saved!",
+                    description: `"${title}" has been added to your dashboard.`,
+                });
+                router.push('/dashboard');
+            } else {
+                console.error('Error saving receipt:', res.statusText);
+                toast({
+                    variant: 'destructive',
+                    title: 'Save Failed',
+                    description: `Could not save the receipt: ${res.statusText}. Please try again.`, 
+                });
+            }
+        } catch (error) {
+            console.error('Error saving receipt:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Save Failed',
+                description: 'Could not save the receipt. Please try again.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const formatCurrency = (amount: number) => {
@@ -183,9 +252,9 @@ export default function UploadPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="w-full min-h-64 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/50 p-2">
-                                {images.length > 0 ? (
+                                {imagePreviews.length > 0 ? (
                                     <div className="flex flex-wrap gap-2 justify-center">
-                                        {images.map((image, index) => (
+                                        {imagePreviews.map((image, index) => (
                                             <Image key={index} src={image} alt={`Receipt preview ${index + 1}`} width={150} height={200} className="object-contain h-48 w-auto rounded-md" />
                                         ))}
                                     </div>
@@ -200,7 +269,7 @@ export default function UploadPage() {
                         </CardContent>
                     </Card>
 
-                    <Button onClick={processReceipt} disabled={images.length === 0 || isLoading} className="w-full">
+                    <Button onClick={processReceipt} disabled={!selectedFiles || selectedFiles.length === 0 || isLoading} className="w-full">
                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : '2. Analyze with AI'}
                     </Button>
 
@@ -236,6 +305,18 @@ export default function UploadPage() {
                                 <Label htmlFor="title">Receipt Title</Label>
                                 <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Weekly Groceries" />
                             </div>
+                            <Separator />
+
+                            <div className="space-y-2">
+                                <Label htmlFor="tax">Tax</Label>
+                                <Input id="tax" type="number" step="0.01" value={tax} onChange={(e) => setTax(parseFloat(e.target.value) || 0)} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="service-charge">Service Charge</Label>
+                                <Input id="service-charge" type="number" step="0.01" value={serviceCharge} onChange={(e) => setServiceCharge(parseFloat(e.target.value) || 0)} />
+                            </div>
+
                             <Separator />
 
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-2">

@@ -19,9 +19,22 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import FriendListModal from "./friend-list-modal";
 import { useRouter } from "next/navigation";
+import { useAuth } from '@/context/AuthContext';
+import { getAuth, signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function Header() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error("Error logging out: ", error);
+    }
+  };
 
   return (
     <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 z-50">
@@ -44,8 +57,8 @@ export default function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
-                  <AvatarImage src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="@user" />
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarImage src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || user?.email || 'U'}`} alt={user?.displayName || user?.email || 'User'} />
+                  <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
@@ -55,14 +68,14 @@ export default function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">John Doe</p>
+                  <p className="text-sm font-medium leading-none">{user?.displayName || user?.email}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    j.doe@example.com
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/login')}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
@@ -72,4 +85,3 @@ export default function Header() {
       </nav>
     </header>
   );
-}
