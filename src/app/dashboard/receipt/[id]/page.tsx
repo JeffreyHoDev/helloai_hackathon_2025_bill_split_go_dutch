@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, PlusCircle, Trash2, Calendar, Users, UserPlus } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Trash2, Calendar, Users, UserPlus, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -95,6 +95,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
   const [newItemPrice, setNewItemPrice] = useState('');
   const { toast } = useToast();
   const isUploader = currentUserId === receiptDetails.uploaderId;
+  const uploaderInfo = users[receiptDetails.uploaderId as keyof typeof users];
 
   const handleClaim = (itemId: string) => {
     setItems(prevItems => prevItems.map(item => {
@@ -173,9 +174,15 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
       <div className="space-y-4">
         <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight">{receiptDetails.title}</h1>
-            <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="mr-2 h-4 w-4" />
-                <span>{formatDate(receiptDetails.date)}</span>
+            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                <div className="flex items-center">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    <span>{formatDate(receiptDetails.date)}</span>
+                </div>
+                 <div className="flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Uploaded by {uploaderInfo.name}</span>
+                </div>
             </div>
         </div>
         <div className="space-y-2">
@@ -351,3 +358,5 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
