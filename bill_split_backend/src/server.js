@@ -10,7 +10,7 @@ const friendsRoutes = require('./routes/friends');
 const receiptsRoutes = require('./routes/receipts');
 const itemsRoutes = require('./routes/items');
 const uploadRoutes = require('./routes/upload');
-const paymentRoutes = require('./routes/payment');
+
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -38,7 +38,6 @@ usersRoutes.use('/:userId/friends', friendsRoutes); // Nested friends routes
 app.use('/api/receipts', receiptsRoutes);
 receiptsRoutes.use('/:receiptId/items', itemsRoutes); // Nested items routes
 app.use('/api/upload', uploadRoutes);
-app.use('/api/payment', paymentRoutes);
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
