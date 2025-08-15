@@ -41,6 +41,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 
 // Mock data - in a real app, you'd fetch this based on the `id` param
@@ -314,7 +315,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
             <CardContent className="p-0">
                 <div className="space-y-2 max-h-[calc(70vh-80px)] overflow-y-auto">
                     {items.map((item, index) => (
-                        <div key={item.id}>
+                        <div key={item.id} className={cn({"opacity-50": !!item.claimedBy})}>
                             <div className="flex items-center p-4">
                                 <Checkbox
                                     id={`item-${item.id}`}
@@ -323,7 +324,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
                                     disabled={!!item.claimedBy}
                                     className="mr-4"
                                 />
-                                <Label htmlFor={`item-${item.id}`} className="flex-1 cursor-pointer">
+                                <Label htmlFor={`item-${item.id}`} className={cn("flex-1", {"cursor-pointer": !item.claimedBy})}>
                                     <p className="font-medium">{item.name}</p>
                                     <p className="text-sm text-muted-foreground">{formatCurrency(item.price)}</p>
                                 </Label>
@@ -384,5 +385,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
 
     
