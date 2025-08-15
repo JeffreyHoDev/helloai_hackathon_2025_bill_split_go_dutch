@@ -16,7 +16,7 @@ const register = async (req, res) => {
 
     // Create a corresponding user document in Firestore
     await admin.firestore().collection('users').doc(userRecord.uid).set({
-      displayName,
+      displayName: displayName || email,
       email,
       avatar: `https://i.pravatar.cc/150?u=${userRecord.uid}` // Using a placeholder avatar
     });
@@ -46,10 +46,14 @@ const login = async (req, res) => {
 
     // If user does not exist in Firestore, create them
     if (!userDoc.exists) {
+      const displayName = userRecord.displayName || userRecord.email || 'New User';
+      const email = userRecord.email;
+      const photoURL = userRecord.photoURL || `https://ui-avatars.com/api/?name=${displayName.replace(/\s/g, '+')}`;
+      
       await userDocRef.set({
-        displayName: userRecord.displayName || 'New User',
-        email: userRecord.email,
-        avatar: userRecord.photoURL || `https://ui-avatars.com/api/?name=${userRecord.displayName || userRecord.email || 'U'}`,
+        displayName: displayName,
+        email: email,
+        avatar: photoURL,
       });
     }
 
