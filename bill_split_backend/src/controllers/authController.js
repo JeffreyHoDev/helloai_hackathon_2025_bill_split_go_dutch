@@ -41,13 +41,17 @@ const login = async (req, res) => {
 
     // Fetch user details from Firebase Auth
     const userRecord = await admin.auth().getUser(uid);
+    const userDocRef = admin.firestore().collection('users').doc(uid);
+    const userDoc = await userDocRef.get();
 
-    // Update or create user document in Firestore
-    await admin.firestore().collection('users').doc(uid).set({
-      displayName: userRecord.displayName || null,
-      email: userRecord.email || null,
-      avatar: userRecord.photoURL || `https://ui-avatars.com/api/?name=${userRecord.displayName || userRecord.email || 'U'}`,
-    }, { merge: true }); // Use merge: true to update existing fields without overwriting the whole document
+    // If user does not exist in Firestore, create them
+    if (!userDoc.exists) {
+      await userDocRef.set({
+        displayName: userRecord.displayName || 'New User',
+        email: userRecord.email,
+        avatar: userRecord.photoURL || `https://ui-avatars.com/api/?name=${userRecord.displayName || userRecord.email || 'U'}`,
+      });
+    }
 
     res.status(200).json({ message: 'Login successful', uid });
   } catch (error) {
