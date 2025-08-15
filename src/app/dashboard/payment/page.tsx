@@ -31,21 +31,11 @@ function PaymentPageContent() {
     };
 
     const handleConfirmPayment = () => {
-        // In a real application, this would trigger a payment gateway integration
-        // and on success, update the database to mark items as claimed.
-        console.log("Processing payment for:", {
-            receiptId,
-            items: selectedItems.map(i => i.id),
-            total: totalAmount,
+        const params = new URLSearchParams({
+            receiptId: receiptId || '',
+            items: JSON.stringify(selectedItems),
         });
-
-        toast({
-            title: "Payment Successful!",
-            description: `You have successfully paid for ${selectedItems.length} items.`,
-        });
-
-        // Redirect back to the receipt page
-        router.push(`/dashboard/receipt/${receiptId}`);
+        router.push(`/dashboard/payment/checkout?${params.toString()}`);
     };
 
     if (selectedItems.length === 0) {
@@ -84,7 +74,7 @@ function PaymentPageContent() {
                 </CardContent>
                 <CardFooter>
                     <Button className="w-full" onClick={handleConfirmPayment}>
-                        <CreditCard className="mr-2 h-4 w-4" /> Pay {formatCurrency(totalAmount)}
+                        <CreditCard className="mr-2 h-4 w-4" /> Proceed to Payment ({formatCurrency(totalAmount)})
                     </Button>
                 </CardFooter>
             </Card>
