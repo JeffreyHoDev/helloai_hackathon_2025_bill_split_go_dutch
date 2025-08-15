@@ -12,6 +12,8 @@ export interface Item {
   balance: number;
   claimed: boolean;
   date: string;
+  uploaderId: string;
+  participantIds: string[];
 }
 
 interface ItemsGridProps {
