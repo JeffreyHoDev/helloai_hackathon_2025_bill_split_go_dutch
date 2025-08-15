@@ -30,7 +30,7 @@ const initialItems: Item[] = [
 export default function Dashboard() {
     const [items, setItems] = useState<Item[]>(initialItems);
     const [searchTerm, setSearchTerm] = useState('');
-    const [dateFilter, setDateFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState('current_month');
     const { toast } = useToast();
   
     const handleClaimItem = (id: string) => {
