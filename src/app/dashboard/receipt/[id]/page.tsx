@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Carousel,
   CarouselContent,
@@ -14,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, PlusCircle, Trash2, Calendar, Users, UserPlus, User } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Trash2, Calendar, Users, UserPlus, User, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -88,27 +89,37 @@ const currentUserId = 'user1';
 
 export default function ReceiptPage({ params }: { params: { id: string } }) {
   const [items, setItems] = useState(receiptDetails.items);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [participants, setParticipants] = useState(receiptDetails.participants);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [isAddParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const { toast } = useToast();
+  const router = useRouter();
   const isUploader = currentUserId === receiptDetails.uploaderId;
   const uploaderInfo = users[receiptDetails.uploaderId as keyof typeof users];
 
-  const handleClaim = (itemId: string) => {
-    setItems(prevItems => prevItems.map(item => {
-      if (item.id === itemId && !item.claimedBy) {
-        toast({
-          title: "Item Claimed!",
-          description: `You have successfully claimed "${item.name}".`,
-        });
-        return { ...item, claimedBy: currentUserId };
-      }
-      return item;
-    }));
+  const handleSelectionChange = (itemId: string) => {
+    setSelectedItems(prev =>
+        prev.includes(itemId)
+            ? prev.filter(id => id !== itemId)
+            : [...prev, itemId]
+    );
   };
+
+  const handleProceedToPayment = () => {
+    const selectedItemDetails = items
+        .filter(item => selectedItems.includes(item.id))
+        .map(item => ({ id: item.id, name: item.name, price: item.price }));
+    
+    // In a real app, you might want to encrypt this or pass it more securely
+    const query = new URLSearchParams({
+        receiptId: params.id,
+        items: JSON.stringify(selectedItemDetails),
+    });
+    router.push(`/dashboard/payment?${query.toString()}`);
+  }
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,14 +312,21 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
         </div>
         <Card>
             <CardContent className="p-0">
-                <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                <div className="space-y-2 max-h-[calc(70vh-80px)] overflow-y-auto">
                     {items.map((item, index) => (
                         <div key={item.id}>
                             <div className="flex items-center p-4">
-                                <div className="flex-1">
+                                <Checkbox
+                                    id={`item-${item.id}`}
+                                    checked={selectedItems.includes(item.id)}
+                                    onCheckedChange={() => handleSelectionChange(item.id)}
+                                    disabled={!!item.claimedBy}
+                                    className="mr-4"
+                                />
+                                <Label htmlFor={`item-${item.id}`} className="flex-1 cursor-pointer">
                                     <p className="font-medium">{item.name}</p>
                                     <p className="text-sm text-muted-foreground">{formatCurrency(item.price)}</p>
-                                </div>
+                                </Label>
                                 <div className="flex items-center gap-x-4">
                                     {item.claimedBy ? (
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -320,11 +338,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
                                             </Avatar>
                                         </div>
                                     ) : (
-                                        <Button size="sm" onClick={() => handleClaim(item.id)} style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                                            Claim
-                                        </Button>
-                                    )}
-                                    {isUploader && !item.claimedBy && (
+                                       isUploader && (
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
@@ -345,6 +359,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
+                                       )
                                     )}
                                 </div>
                             </div>
@@ -353,6 +368,17 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
                     ))}
                 </div>
             </CardContent>
+            {selectedItems.length > 0 && (
+                <>
+                    <Separator />
+                    <CardContent className="p-4">
+                        <Button className="w-full" onClick={handleProceedToPayment}>
+                            Proceed to Payment ({selectedItems.length} items)
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    </CardContent>
+                </>
+            )}
         </Card>
       </div>
     </div>
