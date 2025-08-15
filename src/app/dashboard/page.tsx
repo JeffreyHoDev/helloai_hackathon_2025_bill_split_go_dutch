@@ -10,10 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import ItemsGrid, { type Item } from '@/components/items-grid';
 import { useToast } from "@/hooks/use-toast";
-import { Search } from 'lucide-react';
-import { subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { Search, Calendar as CalendarIcon } from 'lucide-react';
+import { subMonths, startOfMonth, endOfMonth, isWithinInterval, format, addDays } from 'date-fns';
+import { DateRange } from "react-day-picker";
 
 const initialItems: Item[] = [
   { id: '1', title: 'Weekly Groceries', image: 'https://placehold.co/600x400.png', aiHint: 'receipt groceries', totalPayable: 125.50, balance: 125.50, claimed: false, date: '2023-10-26' },
@@ -31,6 +35,7 @@ export default function Dashboard() {
     const [items, setItems] = useState<Item[]>(initialItems);
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('current_month');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const { toast } = useToast();
   
     const handleClaimItem = (id: string) => {
@@ -45,22 +50,39 @@ export default function Dashboard() {
           });
       }
     };
+    
+    const handleDateFilterChange = (value: string) => {
+        setDateFilter(value);
+        if (value !== 'custom') {
+            setDateRange(undefined);
+        }
+    }
 
     const filteredItems = useMemo(() => {
         let dateFiltered = items;
 
         if (dateFilter !== 'all') {
+            let interval: Interval | undefined;
             const now = new Date();
-            let interval: Interval;
 
             if (dateFilter === 'current_month') {
                 interval = { start: startOfMonth(now), end: endOfMonth(now) };
-            } else { // last_month
+            } else if (dateFilter === 'last_month') {
                 const lastMonth = subMonths(now, 1);
                 interval = { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+            } else if (dateFilter === 'custom' && dateRange?.from && dateRange?.to) {
+                interval = { start: dateRange.from, end: dateRange.to };
+            }
+             else if (dateFilter === 'custom' && dateRange?.from) {
+                interval = { start: dateRange.from, end: addDays(dateRange.from, 1) };
             }
 
-            dateFiltered = items.filter(item => isWithinInterval(new Date(item.date), interval));
+            if(interval) {
+                dateFiltered = items.filter(item => isWithinInterval(new Date(item.date), interval!));
+            } else if (dateFilter === 'custom') {
+                // if custom is selected but no range, show nothing
+                dateFiltered = [];
+            }
         }
 
         if (!searchTerm) {
@@ -70,12 +92,12 @@ export default function Dashboard() {
         return dateFiltered.filter(item =>
             item.title.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [items, searchTerm, dateFilter]);
+    }, [items, searchTerm, dateFilter, dateRange]);
 
   return (
     <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+            <div className="relative flex-1 sm:max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                     type="search"
@@ -85,16 +107,54 @@ export default function Dashboard() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter by date" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="current_month">Current Month</SelectItem>
-                    <SelectItem value="last_month">Last Month</SelectItem>
-                </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+                <Select value={dateFilter} onValueChange={handleDateFilterChange}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filter by date" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="current_month">Current Month</SelectItem>
+                        <SelectItem value="last_month">Last Month</SelectItem>
+                        <SelectItem value="custom">Custom Range</SelectItem>
+                    </SelectContent>
+                </Select>
+                {dateFilter === 'custom' && (
+                     <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className="w-[300px] justify-start text-left font-normal"
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                            dateRange.to ? (
+                                <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                                </>
+                            ) : (
+                                format(dateRange.from, "LLL dd, y")
+                            )
+                            ) : (
+                            <span>Pick a date range</span>
+                            )}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                )}
+            </div>
         </div>
       <ItemsGrid items={filteredItems} onClaim={handleClaimItem} />
     </div>
